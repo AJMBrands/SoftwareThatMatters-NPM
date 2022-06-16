@@ -3,18 +3,21 @@ package graph
 import (
 	"fmt"
 	"testing"
+	"time"
 
-	"gonum.org/v1/gonum/graph/simple"
+	"github.com/AJMBrands/SoftwareThatMatters/customgraph"
 )
 
 // TODO: Test ParseJSON
 func TestNodeCreationBasicGraph(t *testing.T) {
+	t1, _ := time.Parse(time.RFC3339, "2021-04-22T20:15:37")
+	t2, _ := time.Parse(time.RFC3339, "2021-04-01T20:15:37")
 	simplePackageInfo := []PackageInfo{
 		{
 			Name: "B",
 			Versions: map[string]VersionInfo{
 				"1.0.0": {
-					Timestamp: "2021-04-22T20:15:37",
+					Timestamp: t1,
 					Dependencies: map[string]string{
 						"A": "1.0.0",
 					},
@@ -25,17 +28,17 @@ func TestNodeCreationBasicGraph(t *testing.T) {
 			Name: "A",
 			Versions: map[string]VersionInfo{
 				"1.0.0": {
-					Timestamp:    "2021-04-01T20:15:37",
+					Timestamp:    t2,
 					Dependencies: map[string]string{},
 				},
 			},
 		},
 	}
 	//dummyMap := make(map[int64]NodeInfo)
-	graph := simple.NewDirectedGraph()
-	stringMap := CreateStringIDToNodeInfoMap(&simplePackageInfo, graph)
-	nameVersion := CreateNameToVersionMap(&simplePackageInfo)
-	CreateEdges(graph, &simplePackageInfo, stringMap, nameVersion, false)
+	graph := customgraph.NewDirectedGraph()
+	hashMap, nodeMap, _ := CreateMaps(&simplePackageInfo, graph)
+	hashToVersionMap := CreateHashedVersionMap(&simplePackageInfo)
+	CreateEdges(graph, &simplePackageInfo, hashMap, nodeMap, hashToVersionMap, false)
 
 	t.Run("Create two nodes because we specified two packages", func(t *testing.T) {
 
@@ -48,13 +51,13 @@ func TestNodeCreationBasicGraph(t *testing.T) {
 
 	t.Run("Create the two unique, correct nodes", func(t *testing.T) {
 		var idA, idB int64
-		if a, check := stringMap["A-1.0.0"]; check && graph.Node(idA) != nil {
+		if a, check := nodeMap[LookupByStringId("A-1.0.0", hashMap)]; check && graph.Node(idA) != nil {
 			idA = a.id
 		} else {
 			t.Error("Node A-1.0.0 didn't exist")
 		}
 
-		if b, check := stringMap["B-1.0.0"]; check && graph.Node(idB) != nil {
+		if b, check := nodeMap[LookupByStringId("B-1.0.0", hashMap)]; check && graph.Node(idB) != nil {
 			idB = b.id
 		} else {
 			t.Error("Node B-1.0.0 didn't exist")
@@ -68,11 +71,13 @@ func TestNodeCreationBasicGraph(t *testing.T) {
 }
 
 func TestNodeCreationMediumComplexity(t *testing.T) {
+	t1, _ := time.Parse(time.RFC3339, "2021-04-22T20:15:37")
+
 	packageB := PackageInfo{
 		Name: "B",
 		Versions: map[string]VersionInfo{
 			"1.0.0": {
-				Timestamp: "2021-04-22T20:15:37",
+				Timestamp: t1,
 				Dependencies: map[string]string{
 					"A": ">=0.9.0",
 					"C": "1.0.0",
@@ -80,44 +85,51 @@ func TestNodeCreationMediumComplexity(t *testing.T) {
 			},
 		},
 	}
+	t2, _ := time.Parse(time.RFC3339, "2022-04-22T20:13:34")
+	t3, _ := time.Parse(time.RFC3339, "2022-05-28T21:22:23")
 	packageC := PackageInfo{
 		Name: "C",
 		Versions: map[string]VersionInfo{
 			"1.0.0": {
-				Timestamp: "2022-04-22T20:13:34",
+				Timestamp: t2,
 				Dependencies: map[string]string{
 					"A": "<1.0.0",
 				},
 			},
 			"2.0.0": {
-				Timestamp: "2022-05-28T21:22:23",
+				Timestamp: t3,
 				Dependencies: map[string]string{
 					"A": "<2.0.0",
 				},
 			},
 		},
 	}
+	t4, _ := time.Parse(time.RFC3339, "2020-04-01T20:15:37")
+	t5, _ := time.Parse(time.RFC3339, "2020-05-01T20:15:37")
+	t6, _ := time.Parse(time.RFC3339, "2021-06-01T20:15:37")
+	t7, _ := time.Parse(time.RFC3339, "2021-06-01T20:15:37")
+	t8, _ := time.Parse(time.RFC3339, "2021-06-01T20:15:48")
 	packageA := PackageInfo{
 		Name: "A",
 		Versions: map[string]VersionInfo{
 			"0.9.0": {
-				Timestamp:    "2020-04-01T20:15:37",
+				Timestamp:    t4,
 				Dependencies: map[string]string{},
 			},
 			"1.0.0-rc.1": {
-				Timestamp:    "2020-05-01T20:15:37",
+				Timestamp:    t5,
 				Dependencies: map[string]string{},
 			},
 			"1.0.0": {
-				Timestamp:    "2021-06-01T20:15:37",
+				Timestamp:    t6,
 				Dependencies: map[string]string{},
 			},
 			"1.1.0": {
-				Timestamp:    "2021-07-01T20:15:37",
+				Timestamp:    t7,
 				Dependencies: map[string]string{},
 			},
 			"2.0.0": {
-				Timestamp:    "2022-01-04T04:02:00",
+				Timestamp:    t8,
 				Dependencies: map[string]string{},
 			},
 		},
@@ -129,10 +141,10 @@ func TestNodeCreationMediumComplexity(t *testing.T) {
 	}
 
 	//dummyMap := make(map[int64]NodeInfo)
-	graph := simple.NewDirectedGraph()
-	stringNodeInfo := CreateStringIDToNodeInfoMap(&mediumPackageInfo, graph)
-	nameVersion := CreateNameToVersionMap(&mediumPackageInfo)
-	CreateEdges(graph, &mediumPackageInfo, stringNodeInfo, nameVersion, false)
+	graph := customgraph.NewDirectedGraph()
+	hashMap, nodeMap, _ := CreateMaps(&mediumPackageInfo, graph)
+	hashToVersionMap := CreateHashedVersionMap(&mediumPackageInfo)
+	CreateEdges(graph, &mediumPackageInfo, hashMap, nodeMap, hashToVersionMap, false)
 
 	t.Run("Creates 8 nodes, one for every package version", func(t *testing.T) {
 
@@ -166,7 +178,7 @@ func TestNodeCreationMediumComplexity(t *testing.T) {
 		}
 
 		for _, v := range packageIDS {
-			if actual, ok := stringNodeInfo[v]; !ok {
+			if actual, ok := nodeMap[LookupByStringId(v, hashMap)]; !ok {
 				t.Errorf("Package version node %s not found", v)
 			} else {
 				expected := testInfo[v]
@@ -189,7 +201,6 @@ func nodeInfosEqual(expected, actual NodeInfo) bool {
 func createTestNodeInfo(pi PackageInfo, version string) NodeInfo {
 	return NodeInfo{
 		id:        -1,
-		stringID:  "invalid",
 		Name:      pi.Name,
 		Version:   version,
 		Timestamp: pi.Versions[version].Timestamp,
@@ -197,12 +208,14 @@ func createTestNodeInfo(pi PackageInfo, version string) NodeInfo {
 }
 
 func TestCreateEdgesBasicGraph(t *testing.T) {
+	t1, _ := time.Parse(time.RFC3339, "2021-04-22T20:15:37")
+	t2, _ := time.Parse(time.RFC3339, "2021-04-01T20:15:37")
 	simplePackagesInfo := []PackageInfo{
 		{
 			Name: "B",
 			Versions: map[string]VersionInfo{
 				"1.0.0": {
-					Timestamp: "2021-04-22T20:15:37",
+					Timestamp: t1,
 					Dependencies: map[string]string{
 						"A": "1.0.0",
 					},
@@ -213,17 +226,17 @@ func TestCreateEdgesBasicGraph(t *testing.T) {
 			Name: "A",
 			Versions: map[string]VersionInfo{
 				"1.0.0": {
-					Timestamp:    "2021-04-01T20:15:37",
+					Timestamp:    t2,
 					Dependencies: map[string]string{},
 				},
 			},
 		},
 	}
 	//dummyMap := make(map[int64]NodeInfo)
-	graph := simple.NewDirectedGraph()
-	stringIDToNodeInfo := CreateStringIDToNodeInfoMap(&simplePackagesInfo, graph)
-	nameToVersions := CreateNameToVersionMap(&simplePackagesInfo)
-	CreateEdges(graph, &simplePackagesInfo, stringIDToNodeInfo, nameToVersions, false)
+	graph := customgraph.NewDirectedGraph()
+	hashMap, nodeMap, _ := CreateMaps(&simplePackagesInfo, graph)
+	hashToVersionMap := CreateHashedVersionMap(&simplePackagesInfo)
+	CreateEdges(graph, &simplePackagesInfo, hashMap, nodeMap, hashToVersionMap, false)
 
 	t.Run("Creates one edge when there is one dependency", func(t *testing.T) {
 
@@ -232,8 +245,8 @@ func TestCreateEdgesBasicGraph(t *testing.T) {
 		}
 	})
 	t.Run("Creates the edge with the correct direction (dependent -> dependency)", func(t *testing.T) {
-		fromID := stringIDToNodeInfo["B-1.0.0"].id
-		toID := stringIDToNodeInfo["A-1.0.0"].id
+		fromID := nodeMap[LookupByStringId("B-1.0.0", hashMap)].id
+		toID := nodeMap[LookupByStringId("A-1.0.0", hashMap)].id
 		if graph.Edge(fromID, toID) == nil {
 			if graph.Edge(toID, fromID) != nil {
 				t.Error("Expected the correct direction but got a reversed edge. Please check if the edge " +
@@ -246,12 +259,14 @@ func TestCreateEdgesBasicGraph(t *testing.T) {
 }
 
 func TestCreateEdgesMediumComplexityGraph(t *testing.T) {
+	t1, _ := time.Parse(time.RFC3339, "2021-07-01T20:15:37")
+	t2, _ := time.Parse(time.RFC3339, "2022-04-22T20:13:34")
 	packagesInfo := []PackageInfo{
 		{
 			Name: "B",
 			Versions: map[string]VersionInfo{
 				"1.0.0": {
-					Timestamp: "2021-04-22T20:15:37",
+					Timestamp: t1,
 					Dependencies: map[string]string{
 						"A": "> 0.9.0",
 						"C": "1.0.0",
@@ -263,7 +278,7 @@ func TestCreateEdgesMediumComplexityGraph(t *testing.T) {
 			Name: "C",
 			Versions: map[string]VersionInfo{
 				"1.0.0": {
-					Timestamp: "2022-04-22T20:13:34",
+					Timestamp: t2,
 					Dependencies: map[string]string{
 						"A": "< 1.0.0",
 					},
@@ -274,43 +289,43 @@ func TestCreateEdgesMediumComplexityGraph(t *testing.T) {
 			Name: "A",
 			Versions: map[string]VersionInfo{
 				"0.9.0": {
-					Timestamp:    "2020-04-01T20:15:37",
+					Timestamp:    t1,
 					Dependencies: map[string]string{},
 				},
 				"1.0.0-rc.1": {
-					Timestamp:    "2020-05-01T20:15:37",
+					Timestamp:    t1,
 					Dependencies: map[string]string{},
 				},
 				"1.0.0": {
-					Timestamp:    "2021-06-01T20:15:37",
+					Timestamp:    t1,
 					Dependencies: map[string]string{},
 				},
 				"1.1.0": {
-					Timestamp:    "2021-07-01T20:15:37",
+					Timestamp:    t1,
 					Dependencies: map[string]string{},
 				},
 			},
 		},
 	}
 	//dummyMap := make(map[int64]NodeInfo)
-	graph := simple.NewDirectedGraph()
-	stringIDToNodeInfo := CreateStringIDToNodeInfoMap(&packagesInfo, graph)
-	nameToVersions := CreateNameToVersionMap(&packagesInfo)
-	CreateEdges(graph, &packagesInfo, stringIDToNodeInfo, nameToVersions, false)
+	graph := customgraph.NewDirectedGraph()
+	hashMap, nodeMap, _ := CreateMaps(&packagesInfo, graph)
+	hashToVersionMap := CreateHashedVersionMap(&packagesInfo)
+	CreateEdges(graph, &packagesInfo, hashMap, nodeMap, hashToVersionMap, false)
 	t.Run("Creates 4 edges when there are 4 possible dependencies", func(t *testing.T) {
 		if graph.Edges().Len() != 4 {
 			t.Errorf("Expected 4 edges, got %d", graph.Edges().Len())
 		}
 	})
 	t.Run("Creates edges to the correct dependencies for Node B-1.0.0", func(t *testing.T) {
-		if graph.From(stringIDToNodeInfo["B-1.0.0"].id).Len() != 3 {
-			t.Errorf("Expected 3 possible dependencies for Node B-1.0.0, got %d", graph.From(stringIDToNodeInfo["B-1.0.0"].id).Len())
+		if graph.From(nodeMap[LookupByStringId("B-1.0.0", hashMap)].id).Len() != 3 {
+			t.Errorf("Expected 3 possible dependencies for Node B-1.0.0, got %d", graph.From(nodeMap[LookupByStringId("B-1.0.0", hashMap)].id).Len())
 		}
-		nodesIterator := graph.From(stringIDToNodeInfo["B-1.0.0"].id)
+		nodesIterator := graph.From(nodeMap[LookupByStringId("B-1.0.0", hashMap)].id)
 		counter := 0
 		for nodesIterator.Next() {
 			currentNode := nodesIterator.Node()
-			if currentNode.ID() == graph.Node(stringIDToNodeInfo["C-1.0.0"].id).ID() {
+			if currentNode.ID() == graph.Node(nodeMap[LookupByStringId("C-1.0.0", hashMap)].id).ID() {
 				counter++
 			}
 		}
@@ -320,8 +335,8 @@ func TestCreateEdgesMediumComplexityGraph(t *testing.T) {
 
 	})
 	t.Run("Creates no edges from Node A-1.0.0 (it has no dependencies)", func(t *testing.T) {
-		if graph.From(stringIDToNodeInfo["A-1.0.0"].id).Len() != 0 {
-			t.Errorf("Expected 0 dependencies for Node A-1.0.0, got %d", graph.From(stringIDToNodeInfo["A-1.0.0"].id).Len())
+		if graph.From(nodeMap[LookupByStringId("A-1.0.0", hashMap)].id).Len() != 0 {
+			t.Errorf("Expected 0 dependencies for Node A-1.0.0, got %d", graph.From(nodeMap[LookupByStringId("A-1.0.0", hashMap)].id).Len())
 		}
 	})
 }
