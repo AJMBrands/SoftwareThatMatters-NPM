@@ -268,7 +268,7 @@ func InInterval(t, begin, end time.Time) bool {
 }
 
 // This is a helper function used to initialize all required auxillary data structures for the graph traversal
-func initializeTraversal(g *customgraph.DirectedGraph, nodeMap map[int64]NodeInfo, connected []*graph.Edge, withinInterval map[int64]bool, beginTime time.Time, endTime time.Time, w traverse.DepthFirst) {
+func initializeTraversal(g *customgraph.DirectedGraph, nodeMap map[int64]NodeInfo, connected []*graph.Edge, withinInterval map[int64]bool, beginTime time.Time, endTime time.Time, w traverse.DepthFirst) traverse.DepthFirst {
 	nodes := g.Nodes()
 	for nodes.Next() { // Initialize withinInterval data structure
 		n := nodes.Node()
@@ -296,6 +296,7 @@ func initializeTraversal(g *customgraph.DirectedGraph, nodeMap map[int64]NodeInf
 			return traverse
 		},
 	}
+	return w
 }
 
 func removeDisconnected(g *customgraph.DirectedGraph, connected []*graph.Edge) {
@@ -338,7 +339,7 @@ func filterGraph(g *customgraph.DirectedGraph, nodeMap map[int64]NodeInfo, begin
 	// This keeps track of which edges we've connected
 	connected := make([]*graph.Edge, 0, len(nodeMap)*2)
 	var w traverse.DepthFirst
-	initializeTraversal(g, nodeMap, connected, withinInterval, beginTime, endTime, w) // Initialize all auxillary data structures for the traversal
+	w = initializeTraversal(g, nodeMap, connected, withinInterval, beginTime, endTime, w) // Initialize all auxillary data structures for the traversal
 
 	traverseAndRemoveEdges(g, withinInterval, w, connected) // Traverse the graph and remove stale edges
 }
@@ -374,7 +375,7 @@ func FilterNode(g *customgraph.DirectedGraph, hashMap map[uint64]int64, nodeMap 
 	// This keeps track of which edges we've connected
 	connected := make([]*graph.Edge, 0, len(nodeMap)*2)
 	var w traverse.DepthFirst
-	initializeTraversal(g, nodeMap, connected, withinInterval, beginTime, endTime, w) // Initialize all auxillary data structures for the traversal
+	w = initializeTraversal(g, nodeMap, connected, withinInterval, beginTime, endTime, w) // Initialize all auxillary data structures for the traversal
 
 	traverseOneNode(g, nodeId, withinInterval, w, connected)
 }
