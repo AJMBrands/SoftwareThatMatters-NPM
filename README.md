@@ -32,7 +32,7 @@ After running these commands, you'll end up with a file containing the transform
 To generate a graph from the acquired data and then interactively explore it (after the first two tasks), run the following:
 
 ```sh
-go run . ingest
+go run . start
 ```
 
 ### License
