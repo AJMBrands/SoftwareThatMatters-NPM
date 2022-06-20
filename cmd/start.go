@@ -85,9 +85,10 @@ func start() {
 				"Find all packages between two timestamps",
 				"Find all the possible dependencies of a package",
 				"Find all the possible dependencies of a package between two timestamps",
-				"Find the latest dependencies of a package between two timestamps",
+				"Find the latest dependencies of a package.",
 				"Find the n most used packages by PageRank between two time stamps",
 				"Find the n most used packages by PageRank (without considering time)",
+				"Find the n most used packages by node betweenness",
 				"Find the n most used packages by node betweenness (without considering time)",
 				"Quit",
 			},
@@ -132,7 +133,8 @@ func start() {
 			endTime := generateAndRunDatePrompt("Please input the end date of the interval (DD-MM-YYYY)")
 			fmt.Println("Getting the latest dependencies for packages. This will take a while")
 			t1 := time.Now().Unix()
-			g.FilterLatestDepsGraph(graph, idToNodeInfo, hashMap, beginTime, endTime)
+			g.FilterNoTraversal(graph, idToNodeInfo, beginTime, endTime)
+			g.LatestNoTraversal(graph, idToNodeInfo, hashMap)
 			t2 := time.Now().Unix()
 			fmt.Printf("Graph filtering took %d seconds\n", t2-t1)
 			fmt.Println("Running PageRank")
@@ -169,6 +171,14 @@ func start() {
 			}
 		case 6:
 			fmt.Println("This should find the n most used packages (by node betweenness)")
+			beginTime := generateAndRunDatePrompt("Please input the beginning date of the interval (DD-MM-YYYY)")
+			endTime := generateAndRunDatePrompt("Please input the end date of the interval (DD-MM-YYYY)")
+			fmt.Println("Getting the latest dependencies for packages. This will take a while")
+			t1 := time.Now().Unix()
+			g.FilterNoTraversal(graph, idToNodeInfo, beginTime, endTime)
+			g.LatestNoTraversal(graph, idToNodeInfo, hashMap)
+			t2 := time.Now().Unix()
+			fmt.Printf("Graph filtering took %d seconds\n", t2-t1)
 			fmt.Println("Running node betweenness algorithm")
 			b := g.Betweenness(graph)
 			keys := make([]int64, 0, len(b))
@@ -185,6 +195,23 @@ func start() {
 				fmt.Printf("The number %d highest-ranked node (%v) has rank %f \n", i, idToNodeInfo[keys[i]], b[keys[i]])
 			}
 		case 7:
+			fmt.Println("This should find the n most used packages (by node betweenness)")
+			fmt.Println("Running node betweenness algorithm")
+			b := g.Betweenness(graph)
+			keys := make([]int64, 0, len(b))
+			for k := range b {
+				keys = append(keys, k)
+			}
+
+			sort.SliceStable(keys, func(i, j int) bool {
+				return b[keys[i]] > b[keys[j]]
+			})
+
+			count := generateAndRunNumberPrompt("Please select the number (n > 0) of highest-ranked packages you wish to see")
+			for i := 0; i < count; i++ {
+				fmt.Printf("The number %d highest-ranked node (%v) has rank %f \n", i, idToNodeInfo[keys[i]], b[keys[i]])
+			}
+		case 8:
 			fmt.Println("Stopping the program...")
 			stop = true
 		}
@@ -250,7 +277,8 @@ func findLatestDependenciesOfAPackageBetweenTwotimestamps(graph *customgraph.Dir
 	beginTime := generateAndRunDatePrompt("Please input the beginning date of the interval (DD-MM-YYYY)")
 	endTime := generateAndRunDatePrompt("Please input the end date of the interval (DD-MM-YYYY)")
 	nodeStringId := generateAndRunPackageNamePrompt("Please select the name and the version of the package", nodeMap)
-	g.FilterGraph(graph, nodeMap, beginTime, endTime)
+	g.FilterNoTraversal(graph, nodeMap, beginTime, endTime)
+	g.LatestNoTraversal(graph, nodeMap, hashMap)
 	return g.GetLatestTransitiveDependenciesNode(graph, nodeMap, hashMap, nodeStringId)
 }
 
